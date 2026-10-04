@@ -1,0 +1,16 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "esp32-dots": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${PLUGIN_ROOT}/server/local-connection.mjs"
+      ],
+      "cwd": "${PLUGIN_ROOT}",
+      "env": {
+        "ESP32_BRIDGE_STATE_DIR": "C:\\path\\to\\dots-desktop-companion\\bridge\\.state"
+      }
+    }
+  }
+}

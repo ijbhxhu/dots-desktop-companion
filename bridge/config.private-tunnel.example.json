@@ -1,0 +1,18 @@
+{
+  "privateTunnel": true,
+  "localSceneFeedback": true,
+  "listenPort": 8787,
+  "stateFile": ".state/state.enc.json",
+  "python": "C:\\Espressif\\tools\\python\\v6.0.1\\venv\\Scripts\\python.exe",
+  "captureIntervalMs": 1500,
+  "devices": [
+    {
+      "id": "esp32-demo",
+      "port": "COM4",
+      "profile": "verified_ch340_uart0",
+      "expectedMac": "aa:bb:cc:dd:ee:ff",
+      "maxCaptureAgeSeconds": 2,
+      "maxFrameGapSeconds": 2
+    }
+  ]
+}

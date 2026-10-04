@@ -1,0 +1,18 @@
+{
+  "publicBaseUrl": "https://REPLACE-WITH-AUTHORIZED-TUNNEL-ORIGIN.example",
+  "listenPort": 8787,
+  "stateFile": ".state/state.enc.json",
+  "oauthRedirectUris": ["https://chatgpt.com/connector_platform_oauth_redirect"],
+  "python": "C:\\Espressif\\tools\\python\\v6.0.1\\venv\\Scripts\\python.exe",
+  "captureIntervalMs": 1000,
+  "devices": [
+    {
+      "id": "esp32-demo",
+      "port": "COM4",
+      "profile": "verified_ch340_uart0",
+      "expectedMac": "aa:bb:cc:dd:ee:ff",
+      "maxCaptureAgeSeconds": 2,
+      "maxFrameGapSeconds": 2
+    }
+  ]
+}

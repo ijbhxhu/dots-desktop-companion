@@ -1,0 +1,4 @@
+{
+  "tunnelId": "YOUR_TUNNEL_ID",
+  "tunnelExecutable": "C:\\path\\to\\tunnel-client.exe"
+}

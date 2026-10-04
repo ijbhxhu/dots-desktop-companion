@@ -1,0 +1,6 @@
+# Explicit GOOUUU single-request profile. No camera initialization at boot.
+# Pin map selected from the user's GOOUUU board identification and the vendor
+# schematic; this flag is not a claim that physical PCB lettering was inspected.
+CONFIG_DOT_CAMERA_DRIVER_ENABLED=y
+CONFIG_DOT_CAMERA_BOARD_CONFIRMED=y
+CONFIG_DOT_CAMERA_CAPTURE_ALLOWED=y

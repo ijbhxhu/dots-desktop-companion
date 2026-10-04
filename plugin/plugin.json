@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "esp32-dots",
+  "version": "0.1.0",
+  "description": "Connect to the verified local ESP32 Dots MCP bridge for TFT control and aggregate camera events.",
+  "author": {"name": "ESP32 Dots owner"},
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ESP32 Dots",
+        "shortDescription": "Camera events and Dots TFT",
+        "longDescription": "Read the verified ESP32 state, receive camera scene changes, and switch the Dots TFT between READY and HAPPY. The local runtime handles pixels in memory. ChatGPT cloud access uses the separately configured existing Secure MCP Tunnel.",
+        "developerName": "ESP32 Dots owner",
+        "category": "Developer Tools",
+        "defaultPrompt": "Check my ESP32 Dots connection and subscribe to camera scene changes."
+      }
+    }
+  }
+}

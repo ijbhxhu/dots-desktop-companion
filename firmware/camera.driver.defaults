@@ -1,0 +1,4 @@
+# Compile-only profile after approval of the driver dependency. No capture.
+CONFIG_DOT_CAMERA_DRIVER_ENABLED=y
+CONFIG_DOT_CAMERA_BOARD_CONFIRMED=n
+CONFIG_DOT_CAMERA_CAPTURE_ALLOWED=n

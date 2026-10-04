@@ -1,0 +1,23 @@
+# Runtime credentials and physical device configuration
+.env
+.env.*
+!.env.example
+.state/
+runtime.local.json
+config.local.json
+*.key
+*.pem
+# Generated files and toolchains
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+node_modules/
+__pycache__/
+*.pyc
+*.log
+*.bin
+*.elf
+*.map
+*.zip

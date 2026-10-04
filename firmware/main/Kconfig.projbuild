@@ -1,0 +1,33 @@
+menu "Dot camera single-frame capture"
+config DOT_CAMERA_DRIVER_ENABLED
+    bool "Compile the approved esp32-camera backend"
+    default n
+    help
+        Requires a separately approved esp32-camera component and its dependencies.
+        Merely compiling the backend does not enable camera GPIO or acquisition.
+config DOT_CAMERA_BOARD_CONFIRMED
+    bool "Installed board matches the documented GOOUUU camera pin map"
+    default n
+config DOT_CAMERA_CAPTURE_ALLOWED
+    bool "Allow an explicit camera.frame USB request to initialize and capture"
+    depends on DOT_CAMERA_DRIVER_ENABLED && DOT_CAMERA_BOARD_CONFIRMED
+    default n
+    help
+        Enable only for an explicitly approved hardware test. Camera remains off
+        at boot; camera.frame initializes it, captures once, returns the buffer,
+        and deinitializes it. No motor, Wi-Fi or cloud connection is enabled.
+endmenu
+
+menu "Dot command transport"
+config DOT_TRANSPORT_UART0
+    bool "Use GOOUUU CH340 UART0 instead of native USB Serial/JTAG"
+    default n
+    help
+        Vendor schematic connects UART0 TX=GPIO43 and RX=GPIO44 to CH340.
+        Requires primary UART0 console; the build-only helper selects it.
+config DOT_UART0_BAUDRATE
+    int "UART0 command baud rate"
+    depends on DOT_TRANSPORT_UART0
+    range 115200 2000000
+    default 460800
+endmenu
