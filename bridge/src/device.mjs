@@ -16,30 +16,35 @@ export class PythonUsbAdapter {
     if (this.allowCapture) args.push('--allow-capture');
     // State encryption and owner pairing secrets are never passed to the worker.
     const env = { SystemRoot: process.env.SystemRoot, WINDIR: process.env.WINDIR, PATH: process.env.PATH, TEMP: process.env.TEMP, TMP: process.env.TMP, PYTHONUTF8: '1' };
-    this.worker = this.workerFactory(this.python, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env });
-    this.worker.stdout.setEncoding('utf8');
-    this.worker.stdout.on('data', chunk => {
+    const worker = this.workerFactory(this.python, args, { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'], env });
+    this.worker = worker;
+    worker.stdout.setEncoding('utf8');
+    worker.stdout.on('data', chunk => {
+      if (this.worker !== worker) return;
       this.buffer += chunk;
-      if (this.buffer.length > 8192) return this.fail('adapter_reply_too_large');
+      if (this.buffer.length > 8192) return this.fail('adapter_reply_too_large', worker);
       while (this.buffer.includes('\n')) {
         const position = this.buffer.indexOf('\n');
         const line = this.buffer.slice(0, position);
         this.buffer = this.buffer.slice(position + 1);
         let reply;
-        try { reply = JSON.parse(line); } catch { this.fail('invalid_adapter_reply'); return; }
+        try { reply = JSON.parse(line); } catch { this.fail('invalid_adapter_reply', worker); return; }
         const pending = this.pending;
-        if (!pending || reply.id !== pending.id || typeof reply.ok !== 'boolean') { this.fail('adapter_reply_mismatch'); return; }
+        if (!pending || pending.worker !== worker || reply.id !== pending.id || typeof reply.ok !== 'boolean') { this.fail('adapter_reply_mismatch', worker); return; }
         this.pending = null;
         clearTimeout(pending.timer);
         if (reply.ok === true) pending.resolve(reply.result);
         else pending.reject(new RpcError(-32004, 'Device operation failed', { reason: /^[a-z_]{1,64}$/u.test(reply.reason ?? '') ? reply.reason : 'adapter_failed', ...(safeFirmwareCode(reply.firmware_code) ? { firmware_code: reply.firmware_code } : {}) }));
       }
     });
-    this.worker.stderr.on('data', () => {}); // Device pixels/logs/tracebacks never enter MCP results.
-    this.worker.on('error', () => this.fail('worker_failed'));
-    this.worker.on('exit', () => this.fail('worker_exited'));
+    worker.stderr.on('data', () => {}); // Device pixels/logs/tracebacks never enter MCP results.
+    for (const stream of [worker.stdin, worker.stdout, worker.stderr]) stream.on('error', () => this.fail('worker_failed', worker));
+    worker.on('error', () => this.fail('worker_failed', worker));
+    worker.on('exit', () => this.fail('worker_exited', worker));
   }
-  fail(reason) {
+  fail(reason, expectedWorker = this.worker) {
+    // kill() and stream callbacks can arrive after a replacement has started.
+    if (this.worker !== expectedWorker) return;
     const pending = this.pending;
     this.pending = null;
     if (pending) { clearTimeout(pending.timer); pending.reject(new RpcError(-32004, 'Device adapter unavailable', { reason })); }
@@ -48,6 +53,9 @@ export class PythonUsbAdapter {
     this.buffer = '';
     if (worker && worker.exitCode === null) worker.kill();
   }
+  failRequest(reason, worker, requestId) {
+    if (this.worker === worker && this.pending?.id === requestId) this.fail(reason, worker);
+  }
   async execute(deviceId, request) {
     if (deviceId !== this.device.id) throw new RpcError(-32003, 'Device access denied');
     if (request.operation === 'capture_once' && !this.allowCapture) throw new RpcError(-32003, 'Capture is disabled');
@@ -55,9 +63,12 @@ export class PythonUsbAdapter {
     this.start();
     return await new Promise((resolve, reject) => {
       const requestId = ++this.counter;
-      const timer = setTimeout(() => this.fail('adapter_timeout'), 14_000);
-      this.pending = { id: requestId, resolve, reject, timer };
-      this.worker.stdin.write(`${JSON.stringify({ id: requestId, request })}\n`, error => { if (error) this.fail('worker_failed'); });
+      const worker = this.worker;
+      const timer = setTimeout(() => this.failRequest('adapter_timeout', worker, requestId), 14_000);
+      this.pending = { id: requestId, worker, resolve, reject, timer };
+      try {
+        worker.stdin.write(`${JSON.stringify({ id: requestId, request })}\n`, error => { if (error) this.failRequest('worker_failed', worker, requestId); });
+      } catch { this.failRequest('worker_failed', worker, requestId); }
     });
   }
   close() { this.fail('adapter_closed'); }

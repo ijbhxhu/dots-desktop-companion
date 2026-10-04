@@ -46,8 +46,12 @@ def read_frame_header(data, epoch, previous_sequence=0):
     magic, version, pixel_format, size, source_epoch, sequence, captured_us, width, height, length, crc = HEADER.unpack(data)
     if (magic, version, pixel_format, size, width, height, length) != (b"DCF1", 1, 1, 44, 160, 120, 38400):
         raise ProtocolError("invalid_frame_header")
-    if f"{source_epoch:016x}" != epoch or sequence <= previous_sequence or captured_us >= 2**63:
-        raise ProtocolError("frame_identity_mismatch")
+    if f"{source_epoch:016x}" != epoch:
+        raise ProtocolError("frame_source_epoch_mismatch")
+    if sequence <= previous_sequence:
+        raise ProtocolError("frame_sequence_replayed")
+    if captured_us >= 2**63:
+        raise ProtocolError("invalid_capture_clock")
     return {"source_epoch": epoch, "sequence": sequence, "captured_us": captured_us, "width": width, "height": height, "length": length, "crc": crc}
 
 
@@ -323,6 +327,7 @@ class UsbDevice:
         self.port_factory, self.port_info = port_factory, port_info
         self.port = self.reader = self.mapping = None
         self.sequence = 0
+        self.sequence_epoch = None
         self.detector = WhiteHold(max_gap)
         self.scene_detector = SceneChange(max_gap)
 
@@ -390,7 +395,15 @@ class UsbDevice:
         wall1, mono1 = self.wall(), self.mono()
         self.identity(payload)
         if bind_clock:
-            self.mapping = ClockMapping(payload, wall0, wall1, mono0, mono1, self.max_uncertainty)
+            mapping = ClockMapping(payload, wall0, wall1, mono0, mono1, self.max_uncertainty)
+            # Keep replay protection across reconnects within the same boot.
+            # Only a new validated board epoch starts a new sequence domain.
+            if self.sequence_epoch != mapping.epoch:
+                self.sequence = 0
+                self.sequence_epoch = mapping.epoch
+                self.detector = WhiteHold(self.detector.max_gap)
+                self.scene_detector = SceneChange(self.scene_detector.max_gap)
+            self.mapping = mapping
         allowed = {"source_epoch", "clock_us", "time_base", "board_mac", "transport", "baud_rate", "camera_driver_present", "camera_capture_allowed", "camera_active", "last_sensor_pid"}
         return {key: value for key, value in payload.items() if key in allowed and isinstance(value, (str, bool, int))}
 

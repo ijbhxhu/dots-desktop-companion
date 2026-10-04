@@ -3,7 +3,7 @@ import struct
 import unittest
 import zlib
 
-from usb_adapter import ClockMapping, HEADER, ProtocolError, Reader, WhiteHold, SceneChange, read_frame_header, white_fraction_rgb565, scene_grid_rgb565
+from usb_adapter import ClockMapping, HEADER, ProtocolError, Reader, UsbDevice, WhiteHold, SceneChange, read_frame_header, white_fraction_rgb565, scene_grid_rgb565
 
 
 EPOCH = "0102030405060708"
@@ -53,10 +53,12 @@ class CaptureProtocolTests(unittest.TestCase):
 
     def test_epoch_replay_dimensions_and_unbounded_header_rejected(self):
         valid = packet()[:44]
-        with self.assertRaisesRegex(ProtocolError, "frame_identity_mismatch"):
+        with self.assertRaisesRegex(ProtocolError, "frame_source_epoch_mismatch"):
             read_frame_header(valid, "ffffffffffffffff")
-        with self.assertRaisesRegex(ProtocolError, "frame_identity_mismatch"):
+        with self.assertRaisesRegex(ProtocolError, "frame_sequence_replayed"):
             read_frame_header(valid, EPOCH, 7)
+        with self.assertRaisesRegex(ProtocolError, "invalid_capture_clock"):
+            read_frame_header(packet(captured_us=2**63)[:44], EPOCH)
         bad = bytearray(valid)
         struct.pack_into("<I", bad, 36, 0xFFFFFFFF)
         with self.assertRaisesRegex(ProtocolError, "invalid_frame_header"):
@@ -103,6 +105,60 @@ class CaptureProtocolTests(unittest.TestCase):
         self.assertEqual(white_fraction_rgb565(b"\xff\xff" * 19200), 1)
         self.assertEqual(white_fraction_rgb565(b"\x00\x00" * 19200), 0)
         self.assertEqual(white_fraction_rgb565(b"\xf8\x00" * 19200), 0)
+
+
+class ReconnectTests(unittest.TestCase):
+    OTHER_EPOCH = "1112131415161718"
+
+    def device(self):
+        device = UsbDevice("COM4", "verified_ch340_uart0", "aa:bb:cc:dd:ee:ff", "esp32-test", allow_capture=True, max_age=2, max_gap=2, wall=lambda: 1000, monotonic=lambda: 10)
+        device.send = lambda command: self.assertEqual(command, "camera.status")
+        return device
+
+    def bind(self, device, epoch=EPOCH, mac="aa:bb:cc:dd:ee:ff"):
+        payload = {"board_mac": mac, "transport": "uart0", "baud_rate": 460800, "source_epoch": epoch, "clock_us": 1_000_000, "time_base": "esp_timer_monotonic_us"}
+        class StatusReader:
+            def json_reply(self, predicate, _deadline):
+                reply = {"ok": True, "payload": payload}
+                self.assert_valid = predicate(reply)
+                return reply
+        device.reader = StatusReader()
+        device.camera_status(bind_clock=True)
+
+    def test_new_verified_boot_epoch_resets_sequence_without_waiting_for_old_count(self):
+        device = self.device()
+        self.bind(device)
+        device.sequence = 158
+        device.detector.latched = True
+        device.scene_detector.update(SceneChangeTests.BLACK, 1000)
+        device.close()
+        self.bind(device, self.OTHER_EPOCH)
+        self.assertEqual(device.sequence, 0)
+        self.assertFalse(device.detector.latched)
+        self.assertIsNone(device.scene_detector.baseline)
+        header = read_frame_header(packet(sequence=1, epoch=self.OTHER_EPOCH)[:44], device.mapping.epoch, device.sequence)
+        self.assertEqual(header["sequence"], 1)
+
+    def test_same_epoch_reconnect_keeps_sequence_replay_guard(self):
+        device = self.device()
+        self.bind(device)
+        device.sequence = 158
+        device.close()
+        self.bind(device)
+        self.assertEqual(device.sequence, 158)
+        with self.assertRaises(ProtocolError):
+            read_frame_header(packet(sequence=158)[:44], device.mapping.epoch, device.sequence)
+        self.assertEqual(read_frame_header(packet(sequence=159)[:44], device.mapping.epoch, device.sequence)["sequence"], 159)
+
+    def test_wrong_board_cannot_reset_verified_sequence_or_bind_clock(self):
+        device = self.device()
+        self.bind(device)
+        device.sequence = 158
+        device.close()
+        with self.assertRaisesRegex(ProtocolError, "firmware_identity_mismatch"):
+            self.bind(device, self.OTHER_EPOCH, "00:00:00:00:00:00")
+        self.assertEqual(device.sequence, 158)
+        self.assertIsNone(device.mapping)
 
 
 class TimeAndDetectorTests(unittest.TestCase):

@@ -6,7 +6,7 @@ export class RpcError extends Error {
 const safeReasons = new Set([
   'adapter_disabled', 'adapter_failed', 'adapter_type_error', 'adapter_value_error', 'adapter_import_failed', 'adapter_io_failed',
   'adapter_reply_too_large', 'invalid_adapter_reply', 'adapter_reply_mismatch', 'worker_failed', 'worker_exited', 'adapter_timeout', 'adapter_closed', 'serial_busy',
-  'truncated_header', 'invalid_frame_header', 'frame_identity_mismatch', 'invalid_pixels', 'invalid_scene_sample', 'invalid_clock_status',
+  'truncated_header', 'invalid_frame_header', 'frame_identity_mismatch', 'frame_source_epoch_mismatch', 'frame_sequence_replayed', 'invalid_capture_clock', 'invalid_pixels', 'invalid_scene_sample', 'invalid_clock_status',
   'host_clock_jump', 'clock_mapping_uncertain', 'stale_capture_clock', 'capture_not_fresh', 'invalid_detector_sample',
   'serial_timeout', 'serial_read_failed', 'serial_write_failed', 'serial_write_timeout', 'serial_line_too_large', 'serial_noise_limit',
   'firmware_rejected', 'frame_crc_mismatch', 'capture_not_complete', 'port_identity_mismatch', 'port_open_failed',

@@ -41,6 +41,8 @@ Set the nonsecret config `localSceneFeedback:true` with authorized `--enable-ser
 
 Watcher failures emit controlled `camera.watcher_error` JSON with timestamp, device ID, phase, numeric error code and an allowlisted reason; firmware rejections can also include an allowlisted `firmware_code`. No raw exception messages, stack traces, credentials or pixel bytes are logged. Normal frames without white/scene events are successful no-ops. Runtime error counts must be measured since the latest service start; old generic messages are cumulative history and cannot establish the current failure rate.
 
+Recovery retains the last accepted frame sequence across reconnects within one boot epoch. A fresh identity-checked `camera.status` binding to a different boot epoch resets that sequence and detector state. Invalid epochs, repeated sequences and invalid capture clocks report separate safe reasons: `frame_source_epoch_mismatch`, `frame_sequence_replayed` and `invalid_capture_clock`. Late callbacks from a replaced Python worker cannot reject or terminate its successor; late write callbacks also cannot affect a different request.
+
 The native USB profile is VID303A/PID1001 at115200. The verified CH340 UART0 profile is VID1A86/PID7523 at460800, explicitly COM4 and MACaa:bb:cc:dd:ee:ff. The adapter checks firmware `board_mac`, `transport` and `baud_rate` on the actual command channel. It never flashes or changes DTR/RTS. Camera DCF1 validates the44-byte header,160×120 RGB565BE payload,38400-byte length, CRC32, epoch, sequence and completion/stop receipt. Capture time is mapped once from MCU monotonic time; pixels remain in memory.
 
 The native policy defaults to500ms age/gap. The UART example permits2 seconds age/gap and requires at least3 valid white samples over at least1 second, with hysteresis/clearing/3-second cooldown. This is an explicitly different timing profile. **Calibrate actual capture age/cadence before capture watch**; a2-second age check has already rejected one real transfer and must not be bypassed with arrival timestamps.
@@ -48,7 +50,7 @@ The native policy defaults to500ms age/gap. The UART example permits2 seconds ag
 ## Validation
 
 ```powershell
-node --test --test-isolation=none test/bridge.test.mjs
+node --test --test-isolation=none test/*.test.mjs
 & 'C:\Espressif\tools\python\v6.0.1\venv\Scripts\python.exe' -m unittest discover -s python -p 'test_*.py'
 ```
 

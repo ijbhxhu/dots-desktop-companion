@@ -38,11 +38,11 @@ GOOUUU camera：D0..D7 = 11,9,8,10,12,18,17,16；SDA4、SCL5、VSYNC6、HREF7、
 pwsh -File firmware/build_preflight.ps1 -CameraReady -Transport Uart0 -StageDir C:\Espressif\projects\dots-desktop-companion
 pwsh -File firmware/host_test.ps1 -HostCompiler C:/path/to/llvm-mingw/bin/clang.exe
 cd bridge
-node --test --test-isolation=none test/bridge.test.mjs
+node --test --test-isolation=none test/*.test.mjs
 python -m unittest discover -s python -p 'test_*.py'
 ```
 
-本次 source 驗證：19 firmware host tests、25 Node tests、19 Python adapter tests 通過；camera-ready app build 與 app-only flash hash verification 通過。這些結果不表示 ChatGPT Dots 已收到事件，也不代替 LCD 的肉眼確認。
+本次 source 驗證：19 firmware host tests、29 Node tests、22 Python adapter tests 通過；camera-ready app build 與 app-only flash hash verification 通過。這些結果不表示 ChatGPT Dots 已收到事件，也不代替 LCD 的肉眼確認。
 
 ## 啟動本機 bridge / Tunnel
 
